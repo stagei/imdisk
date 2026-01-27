@@ -387,6 +387,9 @@ Write-Host "Run: imdisk -l  (to verify installation)"
         $gitHubRepoUrl = "https://github.com/$($GitHubUsername)/$($GitHubRepoName).git"
         $rootGitPath = Join-Path $SourcePath ".git"
         
+        # Refresh PATH to pick up newly installed tools (like gh CLI)
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        
         Push-Location $SourcePath
         try {
             # Initialize git repo if not exists
@@ -396,15 +399,18 @@ Write-Host "Run: imdisk -l  (to verify installation)"
                 if ($LASTEXITCODE -ne 0) { throw "Failed to initialize git repository" }
             }
             
-            # Check if remote exists, add if not
+            # Check if remote exists, add if not, or update if different
             $remoteUrl = & git remote get-url origin 2>$null
             if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrEmpty($remoteUrl)) {
                 Write-LogMessage "Adding GitHub remote: $gitHubRepoUrl" -Level INFO
                 & git remote add origin $gitHubRepoUrl 2>$null
                 if ($LASTEXITCODE -ne 0) {
-                    # Remote might exist with wrong URL, update it
                     & git remote set-url origin $gitHubRepoUrl
                 }
+            }
+            elseif ($remoteUrl -ne $gitHubRepoUrl) {
+                Write-LogMessage "Updating GitHub remote URL to: $gitHubRepoUrl" -Level INFO
+                & git remote set-url origin $gitHubRepoUrl
             }
             
             # Check if GitHub repo exists using git ls-remote
@@ -418,21 +424,59 @@ Write-Host "Run: imdisk -l  (to verify installation)"
                 
                 # Check if gh CLI is available
                 $ghPath = Get-Command gh -ErrorAction SilentlyContinue
+                if (-not $ghPath) {
+                    # Try to install gh CLI via winget
+                    Write-LogMessage "GitHub CLI not found. Installing via winget..." -Level INFO
+                    $wingetPath = Get-Command winget -ErrorAction SilentlyContinue
+                    if ($wingetPath) {
+                        & winget install --id GitHub.cli --accept-package-agreements --accept-source-agreements --silent
+                        # Refresh PATH after install
+                        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+                        $ghPath = Get-Command gh -ErrorAction SilentlyContinue
+                    }
+                }
+                
                 if ($ghPath) {
-                    & gh repo create $GitHubRepoName --public --source=. --remote=origin --push
+                    # Check if gh is authenticated
+                    & gh auth status 2>&1 | Out-Null
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-LogMessage "GitHub CLI not authenticated. Running 'gh auth login'..." -Level INFO
+                        & gh auth login
+                        if ($LASTEXITCODE -ne 0) {
+                            Write-LogMessage "GitHub authentication failed. Please run 'gh auth login' manually." -Level WARN
+                        }
+                    }
+                    
+                    # Create the repository
+                    Write-LogMessage "Creating GitHub repository: $($GitHubUsername)/$($GitHubRepoName)" -Level INFO
+                    & gh repo create $GitHubRepoName --public --source=. --remote=origin --push 2>$null
                     if ($LASTEXITCODE -eq 0) {
                         Write-LogMessage "GitHub repository created and pushed successfully" -Level INFO
                         $repoExists = $true
                     }
                     else {
-                        Write-LogMessage "Failed to create GitHub repository with gh CLI" -Level WARN
+                        # gh repo create may fail if remote already exists, try just setting it
+                        & git remote set-url origin $gitHubRepoUrl 2>$null
+                        & gh repo create $GitHubRepoName --public 2>$null
+                        if ($LASTEXITCODE -eq 0) {
+                            Write-LogMessage "GitHub repository created successfully" -Level INFO
+                            $repoExists = $true
+                        }
+                        else {
+                            # Repo might already exist, check again
+                            & git ls-remote $gitHubRepoUrl 2>$null | Out-Null
+                            $repoExists = ($LASTEXITCODE -eq 0)
+                            if ($repoExists) {
+                                Write-LogMessage "GitHub repository already exists" -Level INFO
+                            }
+                            else {
+                                Write-LogMessage "Failed to create GitHub repository" -Level WARN
+                            }
+                        }
                     }
                 }
                 else {
-                    Write-LogMessage "GitHub CLI (gh) not installed. Please create the repository manually:" -Level WARN
-                    Write-LogMessage "  1. Go to: https://github.com/new" -Level INFO
-                    Write-LogMessage "  2. Create repository: $GitHubRepoName" -Level INFO
-                    Write-LogMessage "  3. Run this script again to push" -Level INFO
+                    Write-LogMessage "GitHub CLI (gh) not available. Please install manually or create repo at: https://github.com/new" -Level WARN
                 }
             }
             
@@ -464,12 +508,20 @@ Write-Host "Run: imdisk -l  (to verify installation)"
                 
                 # Push to GitHub
                 Write-LogMessage "Pushing to GitHub..." -Level INFO
-                & git push -u origin main
+                & git push -u origin main 2>&1 | ForEach-Object { Write-LogMessage $_ -Level DEBUG }
                 if ($LASTEXITCODE -eq 0) {
                     Write-LogMessage "Successfully pushed to GitHub: $gitHubRepoUrl" -Level INFO
                 }
                 else {
-                    Write-LogMessage "Failed to push to GitHub. You may need to authenticate." -Level WARN
+                    # Try force push if normal push fails (for initial setup)
+                    Write-LogMessage "Normal push failed, trying with --force..." -Level WARN
+                    & git push -u origin main --force
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-LogMessage "Successfully pushed to GitHub: $gitHubRepoUrl" -Level INFO
+                    }
+                    else {
+                        Write-LogMessage "Failed to push to GitHub. Check authentication with 'gh auth status'" -Level ERROR
+                    }
                 }
             }
         }
