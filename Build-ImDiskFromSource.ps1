@@ -142,12 +142,15 @@ try {
 
     # Clone or update repository
     $repoPath = Join-Path $SourcePath "ImDisk"
-    if (Test-Path (Join-Path $repoPath ".git")) {
+    $repoGitPath = Join-Path $repoPath ".git"
+    
+    # Handle existing folder
+    if (Test-Path $repoPath) {
         if ($Force) {
-            Write-LogMessage "Removing existing repository..." -Level INFO
+            Write-LogMessage "Force flag set - removing existing repository folder..." -Level INFO
             Remove-Item -Path $repoPath -Recurse -Force
         }
-        else {
+        elseif (Test-Path $repoGitPath) {
             Write-LogMessage "Repository exists, updating..." -Level INFO
             Push-Location $repoPath
             try {
@@ -159,13 +162,29 @@ try {
                 Pop-Location
             }
         }
+        else {
+            # Folder exists but no .git - remove and re-clone
+            Write-LogMessage "Folder exists but is not a valid git repository. Removing and re-cloning..." -Level WARN
+            Remove-Item -Path $repoPath -Recurse -Force
+        }
     }
 
-    if (-not (Test-Path (Join-Path $repoPath ".git"))) {
+    # Clone if needed
+    if (-not (Test-Path $repoGitPath)) {
         Write-LogMessage "Cloning ImDisk repository from $RepositoryUrl..." -Level INFO
         & git clone -b $Branch $RepositoryUrl $repoPath
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to clone repository"
+        }
+        
+        # Remove nested .git and .github folders (keep only root level)
+        Write-LogMessage "Cleaning up nested .git/.github folders..." -Level INFO
+        $nestedGitFolders = Get-ChildItem -Path $repoPath -Directory -Recurse -Force -ErrorAction SilentlyContinue | 
+            Where-Object { ($_.Name -eq '.git' -or $_.Name -eq '.github') -and $_.Parent.FullName -ne $repoPath }
+        
+        foreach ($folder in $nestedGitFolders) {
+            Write-LogMessage "Removing nested folder: $($folder.FullName)" -Level DEBUG
+            Remove-Item -Path $folder.FullName -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 
