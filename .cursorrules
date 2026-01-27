@@ -1,0 +1,165 @@
+# Clean-Room Implementation Rules for Virtual Disk Tool
+# These rules ensure the AI creates original code NOT bound by GPL-2.0
+
+## PROJECT CONTEXT
+This project is a CLEAN-ROOM IMPLEMENTATION of a virtual disk tool.
+We are creating an ORIGINAL work inspired by the CONCEPT of virtual disk drivers.
+We are NOT creating a derivative work of ImDisk or any GPL-licensed code.
+
+## CRITICAL: NEVER DO THE FOLLOWING
+
+### 1. NEVER Copy Code
+- NEVER copy code from ImDisk, LTRData repositories, or any GPL-2.0 source
+- NEVER use code snippets found in the ImDisk folder as reference
+- NEVER translate existing ImDisk code to another language
+- If user pastes ImDisk code, REFUSE to translate it - instead ask for REQUIREMENTS
+
+### 2. NEVER Replicate Structure
+- NEVER use the same class/module organization as ImDisk
+- NEVER use the same function names, variable names, or naming patterns
+- NEVER replicate the same file structure or project organization
+- Design architecture from first principles based on requirements
+
+### 3. NEVER Reference ImDisk Source
+- NEVER read files from the ImDisk subfolder for implementation guidance
+- NEVER use ImDisk source code to understand "how to implement" something
+- ONLY use official Microsoft documentation, public APIs, and format specifications
+- If implementation details are needed, search web for Microsoft docs
+
+## MANDATORY: ALWAYS DO THE FOLLOWING
+
+### 1. Use Only Public Documentation
+When implementing features, ONLY reference:
+- Microsoft Virtual Hard Disk Format Specification (MS-VHDX)
+- Microsoft Virtual Disk API documentation (virtdisk.h)
+- Windows Driver Kit (WDK) official documentation
+- .NET documentation for System.IO and related namespaces
+- Public algorithm descriptions (not specific implementations)
+
+### 2. Create Original Architecture
+- Design class hierarchies from scratch based on SOLID principles
+- Use modern .NET patterns (async/await, Span<T>, etc.)
+- Create your own naming conventions (do NOT match ImDisk names)
+- Structure the project using modern .NET conventions
+
+### 3. Document Independence
+- Add comments explaining design decisions (not "based on ImDisk")
+- Reference Microsoft docs in comments, not other implementations
+- Maintain a DESIGN-DECISIONS.md file explaining architectural choices
+
+### 4. Use Modern Approaches
+- Use .NET 10+ features and idioms
+- Use modern C++ (C++20/23) if writing native code
+- Use current best practices, not legacy patterns
+- Prefer Microsoft's built-in virtual disk APIs where available
+
+## IMPLEMENTATION GUIDANCE
+
+### When User Asks to Implement a Feature:
+
+1. **ASK**: "What should this feature DO?" (not "how does ImDisk do it")
+2. **SEARCH**: Look up Microsoft documentation for the capability
+3. **DESIGN**: Create an original design based on requirements
+4. **IMPLEMENT**: Write fresh code using modern patterns
+5. **VERIFY**: Ensure no structural similarity to known implementations
+
+### Approved Reference Sources:
+```
+✅ https://docs.microsoft.com/en-us/windows/win32/api/virtdisk/
+✅ https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-vhdx
+✅ https://docs.microsoft.com/en-us/dotnet/api/
+✅ https://docs.microsoft.com/en-us/windows-hardware/drivers/
+✅ https://github.com/dotnet (for .NET runtime patterns)
+✅ Stack Overflow (for general techniques, not ImDisk-specific)
+```
+
+### FORBIDDEN Reference Sources:
+```
+❌ https://github.com/LTRData/ImDisk
+❌ Any file in the ./ImDisk/ subfolder
+❌ Any GPL-2.0 licensed virtual disk implementation
+❌ Any "ImDisk tutorial" or "ImDisk code walkthrough"
+```
+
+## NAMING CONVENTIONS
+
+Use these original naming patterns (NOT ImDisk's):
+
+### Project Names:
+- VirtualDiskEngine (not ImDisk)
+- DiskImageManager (not DevioNet)
+- MountService (not ImDiskSvc)
+
+### Class Names:
+- `VirtualDiskController` (not `ImDiskAPI`)
+- `DiskImageReader` (not `DevioProvider`)
+- `MountManager` (not similar to ImDisk classes)
+
+### Namespace:
+- `VirtualDisk.Core`
+- `VirtualDisk.Formats`
+- `VirtualDisk.Mounting`
+
+## CODE REVIEW CHECKLIST
+
+Before generating code, verify:
+- [ ] Is this based on Microsoft docs, not ImDisk source?
+- [ ] Are class/function names original?
+- [ ] Is the architecture my own design?
+- [ ] Could this code exist without ImDisk existing?
+- [ ] Would a side-by-side comparison show DIFFERENT structure?
+
+## RESPONSE TEMPLATE
+
+When implementing features, structure responses as:
+
+```
+## Feature: [Name]
+
+### Requirements (from user):
+[What the feature should do]
+
+### Reference Documentation:
+[Links to Microsoft docs used]
+
+### Design Approach:
+[Original architectural decisions]
+
+### Implementation:
+[Fresh code following modern patterns]
+```
+
+## LEGAL PROTECTION PHRASES
+
+Include in generated source files:
+
+```csharp
+// VirtualDiskEngine - Original Implementation
+// Copyright (C) 2026 [Owner]
+// 
+// This is an independent implementation based on:
+// - Microsoft Virtual Hard Disk Format Specification
+// - Windows Virtual Disk API Documentation
+// 
+// This code was written without reference to any GPL-licensed
+// virtual disk implementations.
+// 
+// Licensed under [YOUR CHOSEN LICENSE]
+```
+
+## PROJECT GOAL
+
+Create a modern, original virtual disk tool that:
+1. Is written in .NET 10 and modern C++
+2. Uses Microsoft's official APIs and specifications
+3. Has completely original architecture and code
+4. Can be licensed under ANY license (MIT, proprietary, etc.)
+5. Can be promoted as an original product
+6. Has NO legal ties to GPL-2.0 or ImDisk
+
+## REMINDER
+
+The ImDisk folder in this repository is for FEATURE REFERENCE ONLY:
+- Look at WHAT it does (mount disks, create RAM disks)
+- NEVER look at HOW it does it (the code)
+- Treat it like a competitor's product you've only seen demos of
