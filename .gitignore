@@ -1,0 +1,69 @@
+# Build output directories
+build/
+install/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# .NET
+*.dll
+*.exe
+*.pdb
+
+# Windows Driver Kit
+*.sys
+*.cat
+
+# Roslyn cache
+*.ide/
+
+# MSBuild
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*~
+
+# Agent tools output
+agent-tools/
