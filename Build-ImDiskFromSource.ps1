@@ -37,6 +37,15 @@
 .PARAMETER SignBinaries
     Sign compiled binaries using FkSign after build. Default: $true
 
+.PARAMETER GitHubUsername
+    GitHub username for pushing changes. Default: stagei
+
+.PARAMETER GitHubRepoName
+    GitHub repository name. Default: imdisk
+
+.PARAMETER AutoPush
+    Automatically commit and push changes to GitHub after build. Default: $true
+
 .EXAMPLE
     .\Build-ImDiskFromSource.ps1
     Clones and builds ImDisk from source
@@ -83,7 +92,16 @@ param(
     [switch]$BuildGui = $true,
 
     [Parameter(Mandatory = $false)]
-    [switch]$SignBinaries = $true
+    [switch]$SignBinaries = $true,
+
+    [Parameter(Mandatory = $false)]
+    [string]$GitHubUsername = "stagei",
+
+    [Parameter(Mandatory = $false)]
+    [string]$GitHubRepoName = "imdisk",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$AutoPush = $true
 )
 
 $ErrorActionPreference = 'Stop'
@@ -176,16 +194,17 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to clone repository"
         }
-        
-        # Remove nested .git and .github folders (keep only root level)
-        Write-LogMessage "Cleaning up nested .git/.github folders..." -Level INFO
-        $nestedGitFolders = Get-ChildItem -Path $repoPath -Directory -Recurse -Force -ErrorAction SilentlyContinue | 
-            Where-Object { ($_.Name -eq '.git' -or $_.Name -eq '.github') -and $_.Parent.FullName -ne $repoPath }
-        
-        foreach ($folder in $nestedGitFolders) {
-            Write-LogMessage "Removing nested folder: $($folder.FullName)" -Level DEBUG
-            Remove-Item -Path $folder.FullName -Recurse -Force -ErrorAction SilentlyContinue
-        }
+    }
+    
+    # Remove ALL .git and .github folders from cloned subfolders
+    # This excludes the root project folder ($SourcePath) but removes from cloned repo ($repoPath)
+    Write-LogMessage "Cleaning up .git/.github folders from cloned source..." -Level INFO
+    $gitFoldersToRemove = Get-ChildItem -Path $repoPath -Directory -Recurse -Force -ErrorAction SilentlyContinue | 
+        Where-Object { $_.Name -eq '.git' -or $_.Name -eq '.github' }
+    
+    foreach ($folder in $gitFoldersToRemove) {
+        Write-LogMessage "Removing: $($folder.FullName)" -Level DEBUG
+        Remove-Item -Path $folder.FullName -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     Write-LogMessage "Source code available at: $repoPath" -Level INFO
@@ -360,6 +379,104 @@ Write-Host "Run: imdisk -l  (to verify installation)"
         Write-LogMessage "  Binaries signed with FkSign" -Level INFO
     }
     Write-LogMessage "  Run: .\Install-LocalImDisk.ps1 (in install directory)" -Level INFO
+
+    # Auto-push to GitHub after build
+    if ($AutoPush) {
+        Write-LogMessage "Auto-pushing changes to GitHub..." -Level INFO
+        
+        $gitHubRepoUrl = "https://github.com/$($GitHubUsername)/$($GitHubRepoName).git"
+        $rootGitPath = Join-Path $SourcePath ".git"
+        
+        Push-Location $SourcePath
+        try {
+            # Initialize git repo if not exists
+            if (-not (Test-Path $rootGitPath)) {
+                Write-LogMessage "Initializing git repository..." -Level INFO
+                & git init
+                if ($LASTEXITCODE -ne 0) { throw "Failed to initialize git repository" }
+            }
+            
+            # Check if remote exists, add if not
+            $remoteUrl = & git remote get-url origin 2>$null
+            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrEmpty($remoteUrl)) {
+                Write-LogMessage "Adding GitHub remote: $gitHubRepoUrl" -Level INFO
+                & git remote add origin $gitHubRepoUrl 2>$null
+                if ($LASTEXITCODE -ne 0) {
+                    # Remote might exist with wrong URL, update it
+                    & git remote set-url origin $gitHubRepoUrl
+                }
+            }
+            
+            # Check if GitHub repo exists using git ls-remote
+            Write-LogMessage "Checking if GitHub repository exists..." -Level INFO
+            $repoExists = $false
+            & git ls-remote $gitHubRepoUrl 2>$null | Out-Null
+            $repoExists = ($LASTEXITCODE -eq 0)
+            
+            if (-not $repoExists) {
+                Write-LogMessage "GitHub repository does not exist. Creating..." -Level INFO
+                
+                # Check if gh CLI is available
+                $ghPath = Get-Command gh -ErrorAction SilentlyContinue
+                if ($ghPath) {
+                    & gh repo create $GitHubRepoName --public --source=. --remote=origin --push
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-LogMessage "GitHub repository created and pushed successfully" -Level INFO
+                        $repoExists = $true
+                    }
+                    else {
+                        Write-LogMessage "Failed to create GitHub repository with gh CLI" -Level WARN
+                    }
+                }
+                else {
+                    Write-LogMessage "GitHub CLI (gh) not installed. Please create the repository manually:" -Level WARN
+                    Write-LogMessage "  1. Go to: https://github.com/new" -Level INFO
+                    Write-LogMessage "  2. Create repository: $GitHubRepoName" -Level INFO
+                    Write-LogMessage "  3. Run this script again to push" -Level INFO
+                }
+            }
+            
+            if ($repoExists) {
+                # Stage all changes
+                Write-LogMessage "Staging changes..." -Level INFO
+                & git add -A
+                
+                # Check if there are changes to commit
+                $status = & git status --porcelain
+                if ($status) {
+                    # Commit changes
+                    $commitMessage = "Build update: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+                    Write-LogMessage "Committing changes: $commitMessage" -Level INFO
+                    & git commit -m $commitMessage
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-LogMessage "Nothing to commit or commit failed" -Level WARN
+                    }
+                }
+                else {
+                    Write-LogMessage "No changes to commit" -Level INFO
+                }
+                
+                # Ensure we're on main branch
+                $currentBranch = & git branch --show-current
+                if ($currentBranch -ne 'main') {
+                    & git branch -M main
+                }
+                
+                # Push to GitHub
+                Write-LogMessage "Pushing to GitHub..." -Level INFO
+                & git push -u origin main
+                if ($LASTEXITCODE -eq 0) {
+                    Write-LogMessage "Successfully pushed to GitHub: $gitHubRepoUrl" -Level INFO
+                }
+                else {
+                    Write-LogMessage "Failed to push to GitHub. You may need to authenticate." -Level WARN
+                }
+            }
+        }
+        finally {
+            Pop-Location
+        }
+    }
 }
 catch {
     Write-LogMessage "Error building ImDisk from source: $($_.Exception.Message)" -Level ERROR -Exception $_
