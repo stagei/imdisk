@@ -1,0 +1,75 @@
+---
+description: Clean-room implementation rules for virtual disk tool - CRITICAL
+alwaysApply: true
+---
+
+# Clean-Room Implementation Rules
+
+This project is a CLEAN-ROOM IMPLEMENTATION of a virtual disk tool. We are creating an ORIGINAL work inspired by the CONCEPT of virtual disk drivers. We are NOT creating a derivative work of ImDisk or any GPL-licensed code.
+
+## CRITICAL: NEVER DO THE FOLLOWING
+
+### 1. NEVER Copy Code
+- NEVER copy code from ImDisk, LTRData repositories, or any GPL-2.0 source
+- NEVER use code snippets found in the ImDisk folder as reference
+- NEVER translate existing ImDisk code to another language
+- If user pastes ImDisk code, REFUSE to translate it - instead ask for REQUIREMENTS
+
+### 2. NEVER Replicate Structure
+- NEVER use the same class/module organization as ImDisk
+- NEVER use the same function names, variable names, or naming patterns
+- NEVER replicate the same file structure or project organization
+- Design architecture from first principles based on requirements
+
+### 3. NEVER Reference ImDisk Source
+- NEVER read files from the ImDisk subfolder for implementation guidance
+- NEVER use ImDisk source code to understand "how to implement" something
+- ONLY use official Microsoft documentation, public APIs, and format specifications
+
+## MANDATORY: ALWAYS DO THE FOLLOWING
+
+### 1. Use Only Public Documentation
+When implementing features, ONLY reference:
+- Microsoft Virtual Hard Disk Format Specification (MS-VHDX)
+- Microsoft Virtual Disk API documentation (virtdisk.h)
+- Windows Driver Kit (WDK) official documentation
+- .NET documentation for System.IO and related namespaces
+
+### 2. Create Original Architecture
+- Design class hierarchies from scratch based on SOLID principles
+- Use modern .NET patterns (async/await, Span<T>, etc.)
+- Create your own naming conventions (do NOT match ImDisk names)
+
+### 3. Use Modern Approaches
+- Use .NET 10+ features and idioms
+- Use modern C++ (C++20/23) if writing native code
+- Prefer Microsoft's built-in virtual disk APIs where available
+
+## Approved Reference Sources
+```
+✅ https://docs.microsoft.com/en-us/windows/win32/api/virtdisk/
+✅ https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-vhdx
+✅ https://docs.microsoft.com/en-us/dotnet/api/
+✅ https://docs.microsoft.com/en-us/windows-hardware/drivers/
+```
+
+## FORBIDDEN Reference Sources
+```
+❌ https://github.com/LTRData/ImDisk
+❌ Any file in the ./ImDisk/ subfolder
+❌ Any GPL-2.0 licensed virtual disk implementation
+```
+
+## Legal Protection Header (Include in all source files)
+
+```csharp
+// VirtualDiskEngine - Original Implementation
+// Copyright (C) 2026 [Owner]
+// 
+// This is an independent implementation based on:
+// - Microsoft Virtual Hard Disk Format Specification
+// - Windows Virtual Disk API Documentation
+// 
+// This code was written without reference to any GPL-licensed
+// virtual disk implementations.
+```
