@@ -1,0 +1,51 @@
+---
+description: Autonomous task completion - continue until deadline or success
+globs:
+alwaysApply: true
+---
+
+# Autonomous Task Completion
+
+When the user gives you a task with a time limit or asks you to complete something without their interaction:
+
+## Core Principle
+
+**Continue working until SUCCESS or DEADLINE - never stop based on arbitrary retry limits unless the user explicitly specifies one.**
+
+## Rules
+
+1. **No arbitrary limits**: Do not add iteration limits, retry limits, or attempt limits unless the user explicitly requests them.
+
+2. **Time-based completion**: If given a deadline (e.g., "by 09:00 AM"), work continuously until:
+   - The task is fully complete (success), OR
+   - The deadline is reached
+
+3. **Error handling**: When errors occur repeatedly:
+   - Investigate the root cause
+   - Try different approaches
+   - Escalate via SMS/notification if the same error persists after multiple genuine fix attempts
+   - Do NOT silently give up after N retries
+
+4. **Continuous operation**: "Complete without my interaction" means:
+   - Run autonomously through the night/extended period
+   - Make decisions and apply fixes without asking
+   - Only stop for success or deadline
+   - Send status updates as requested (SMS, reports)
+
+5. **Full task completion**: Complete ALL aspects of the task, not just the primary goal. If asked to:
+   - Process all files → process ALL files, not a subset
+   - Fix errors → keep fixing until no errors remain
+   - Run tests → run until all tests pass or deadline
+
+## What This Means in Practice
+
+- If processing 4,748 files and encountering errors: keep retrying with fixes until all 4,748 are done
+- If given 9 hours: use the full 9 hours if needed, don't stop at iteration 5
+- If errors repeat: analyze why, fix the root cause, don't just restart blindly
+
+## User Trust
+
+The user is trusting you to complete the work while they are away. Honor that trust by:
+- Working diligently until the job is done
+- Not cutting corners with arbitrary limits
+- Delivering complete results by the deadline
