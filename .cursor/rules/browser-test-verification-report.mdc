@@ -1,0 +1,165 @@
+---
+description: After browser testing verification, take screenshots, send email report with URLs, and send SMS
+alwaysApply: true
+---
+
+# Browser Test Verification Report
+
+## Obligation
+
+After completing **any browser-based visual verification** (per the web-testing-methodology rule or user request), you MUST produce a verification report with screenshots, email it, and send an SMS.
+
+This is a **mandatory post-verification step**. Do NOT skip it. Do NOT claim verification is complete until this report has been sent.
+
+## Preferred Method: GrabScreenShot Tool
+
+Use the standardized `C:\opt\src\GrabScreenShot` project:
+
+```powershell
+# Capture all apps, send email + SMS (one command)
+pwsh.exe -NoProfile -File "C:\opt\src\GrabScreenShot\Invoke-GrabScreenShot.ps1"
+
+# Capture a single app, no notifications
+pwsh.exe -NoProfile -File "C:\opt\src\GrabScreenShot\Invoke-GrabScreenShot.ps1" -AppName DocView -NoEmail -NoSms
+
+# Capture from test server
+pwsh.exe -NoProfile -File "C:\opt\src\GrabScreenShot\Invoke-GrabScreenShot.ps1" -BaseUrl http://t-no1fkxtst-app
+```
+
+The tool handles screenshots, report generation, email, and SMS automatically. Configure apps in `C:\opt\src\GrabScreenShot\apps.json`.
+
+## Manual Fallback: Step-by-Step
+
+If the GrabScreenShot tool is unavailable, follow these manual steps.
+
+### Step 1: Capture Screenshots
+
+For every page verified during browser testing:
+
+1. Navigate to the page in the browser (using `browser_navigate` or Puppeteer)
+2. If the page supports dark mode, activate it before capturing
+3. Save a **full-page screenshot** as PNG to a temporary folder (e.g., `C:\temp\screenshots\`)
+4. Use a descriptive filename: `{AppName}-{PageName}.png` (e.g., `ServerMonitorDashboard-index.png`)
+
+## Step 2: Build the Verification Report
+
+Compose a report that includes for **every page tested**:
+
+| Field | Content |
+|-------|---------|
+| **App name** | Human-readable name (e.g., "Server Monitor Dashboard") |
+| **Full URL** | The exact URL used to access the page in the browser, in plain text |
+| **Status** | PASS or FAIL with brief reason |
+| **Screenshot** | Attached PNG file |
+
+### Report format (email body)
+
+```
+FkAuth Browser Verification Report
+Date: {date/time}
+Environment: {server or localhost}
+
+Apps Tested:
+ 1. FkAuth Login — http://localhost/FkAuth/login.html — PASS
+ 2. FkAuth Admin — http://localhost/FkAuth/admin.html — PASS
+ 3. DocView — http://localhost/DocView/ — PASS
+ 4. GenericLogHandler — http://localhost/GenericLogHandler/ — PASS
+ 5. ServerMonitorDashboard — http://localhost/ServerMonitorDashboard/ — PASS
+ 6. AutoDocJson — http://localhost/AutoDocJson/ — PASS
+
+Verification Details:
+ - Tenant CSS injection: {working/not working}
+ - User menu: {visible/not visible}
+ - Auth flow: {code exchange / token / cookie}
+ - Dark mode: {activated/not available}
+
+Screenshots attached: {count} PNG files
+```
+
+## Step 3: Send Email
+
+Send the report and screenshots via email:
+
+```powershell
+$emailParams = @{
+    To          = "geir.helge.starholm@felleskjopet.no"
+    From        = "fkauth-agent@felleskjopet.no"
+    Subject     = "FkAuth Browser Test Report - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    Body        = $reportBody
+    SmtpServer  = "smtp.fknett.fk.no"
+    Attachments = $screenshotFiles
+}
+Send-MailMessage @emailParams
+```
+
+If `smtp.fknett.fk.no` is unreachable from the current machine, try the GlobalFunctions module:
+
+```powershell
+Import-Module GlobalFunctions -Force
+Send-Email -To "geir.helge.starholm@felleskjopet.no" -Subject $subject -Body $reportBody -Attachments $screenshotFiles
+```
+
+If both fail, fall back to `Send-MailMessage` with port 25 and a 10-second timeout test first:
+
+```powershell
+$tcp = New-Object System.Net.Sockets.TcpClient
+if ($tcp.ConnectAsync("smtp.fknett.fk.no", 25).Wait(10000)) {
+    $tcp.Close()
+    Send-MailMessage @emailParams
+} else {
+    Write-Host "SMTP unreachable, saving report to file instead"
+    $reportBody | Out-File "C:\temp\screenshots\REPORT.txt"
+}
+```
+
+## Step 4: Send SMS
+
+After the email is sent (or attempted), send an SMS summary:
+
+```powershell
+$smsNumber = switch ($env:USERNAME) {
+    "FKGEISTA" { "+4797188358" }
+    "FKSVEERI" { "+4795762742" }
+    "FKMISTA"  { "+4799348397" }
+    "FKCELERI" { "+4745269945" }
+    default    { "+4797188358" }
+}
+
+Import-Module GlobalFunctions -Force
+Send-Sms -Receiver $smsNumber -Message "Browser test done. {N} apps verified. {pass/fail}. Email sent."
+```
+
+SMS must be under 160 characters. Include: number of apps tested, overall pass/fail, whether email was sent.
+
+## When This Applies
+
+- After **any** visual browser verification task
+- After deploying changes and running the full verification flow
+- When the user explicitly asks to "test and report" or "verify and send screenshots"
+- After running Build-And-Publish + IIS-RedeployAll and verifying the result
+
+## Mandatory Ordering After Deploy
+
+The correct sequence after a code change is:
+
+1. `Build-And-Publish-ALL.ps1` (or `Build-And-Publish.ps1` for single project)
+2. `IIS-RedeployAll.ps1` (installs from staging to IIS, recycles app pools)
+3. **GrabScreenShot** (captures screenshots, emails report, sends SMS)
+
+**NEVER send SMS claiming "all OK" before step 3 completes with ALL PASS.**
+
+```powershell
+# Full sequence
+pwsh.exe -NoProfile -File ".\Build-And-Publish-ALL.ps1"
+pwsh.exe -NoProfile -File "C:\opt\src\FKMenyPSH\DevTools\WebSites\IIS-DeployApp\IIS-RedeployAll.ps1"
+pwsh.exe -NoProfile -File "C:\opt\src\GrabScreenShot\Invoke-GrabScreenShot.ps1"
+```
+
+## Important Notes
+
+- Always include the **full URL in plain text** in the email body (not just app names)
+- Screenshots must be **actual browser captures**, not API response screenshots
+- If a page FAILS, still include it in the report with the failure reason and screenshot
+- The email recipient is always `geir.helge.starholm@felleskjopet.no` unless the user specifies otherwise
+- **Do NOT send SMS before email with screenshots is sent**
+- **Do NOT claim success based on API checks alone -- visual verification is mandatory**

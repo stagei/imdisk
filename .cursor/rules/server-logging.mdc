@@ -1,0 +1,71 @@
+---
+description: Server logging conventions — log locations, formats, date rollover
+alwaysApply: true
+---
+
+# Server Logging Conventions
+
+## Central PowerShell Log (always written)
+
+All scripts using `Write-LogMessage` write to:
+
+```
+opt\data\AllPwshLog\FkLog_YYYYMMDD.log
+```
+
+UNC: `\\<server>\opt\data\AllPwshLog\FkLog_YYYYMMDD.log`
+
+Log line format:
+
+```
+YYYY-MM-DD HH:mm:ss|<server>|<level>|<source>|<pid>|<module>|<function>|<line>|<user>|<message>
+```
+
+## App-Specific Log Override
+
+Some apps call `Set-OverrideAppDataFolder` which redirects all logging to:
+
+```
+opt\data\<AppName>\FkLog_YYYYMMDD.log
+```
+
+When the override is active, the central `AllPwshLog` may NOT receive entries for that app. The app-specific log is the primary source for that app's run.
+
+## Other App Logs
+
+Apps may also write logs to:
+
+- `opt\data\<AppName>\` subfolders (`.out`, `.err`, `.html`, `.bat` files)
+- The app folder itself under `opt\Fk*Apps\<AppName>\`
+- Technology-specific log formats (Python logging, .NET Serilog, etc.)
+
+## Date Rollover
+
+Log file names include `YYYYMMDD`. When a job runs past midnight:
+
+1. Entries before 00:00 are in `FkLog_YYYYMMDD.log` (today)
+2. Entries after 00:00 are in `FkLog_YYYYMMDD+1.log` (tomorrow)
+3. When monitoring a long-running job, if the current time is past 23:59 and the job started before midnight, **check the next day's log file** for continuation
+
+## Remote Log Reading
+
+**Always copy log files locally before reading.** Never use `Select-String`, `Get-Content`, or search tools directly on UNC paths. Large files over SMB cause timeouts and broken pipe parsing.
+
+```powershell
+$localCopy = Join-Path $env:TEMP "RemoteLog_$(Split-Path $remotePath -Leaf)"
+Copy-Item -Path $remotePath -Destination $localCopy -Force
+# Then read/search the local copy
+```
+
+## Common Log Patterns
+
+| Pattern | Meaning |
+|---------|---------|
+| `JOB_STARTED` | A script/job began execution |
+| `JOB_COMPLETED` | A script/job finished successfully |
+| `JOB_FAILED` | A script/job failed |
+| `\|ERROR\|` | Error-level log entry |
+| `\|WARN\|` | Warning-level log entry |
+| `\|INFO\|` | Informational log entry |
+| `finished with exit code: 0` | Orchestrator confirms step succeeded |
+| `finished with exit code: 1` | Orchestrator detected step failure |

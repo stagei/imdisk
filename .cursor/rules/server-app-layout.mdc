@@ -1,0 +1,64 @@
+---
+description: Server folder structure — opt share, app folders, data paths
+alwaysApply: true
+---
+
+# Server App Layout
+
+All managed servers have a standardized `opt` Windows share accessible via UNC: `\\<server>\opt\`
+
+On each server the share maps to a local drive (typically `E:\opt`), accessible as `$env:OptPath`.
+
+## App Folders
+
+Applications are organized by technology under `opt`:
+
+| Folder | Technology | Example |
+|--------|-----------|---------|
+| `opt\FkPshApps\<AppName>\` | PowerShell | `opt\FkPshApps\Db2-ShadowDatabase\` |
+| `opt\FkWinApps\<AppName>\` | Windows / .NET | `opt\FkWinApps\SomeService\` |
+| `opt\FkPyApps\<AppName>\` | Python | `opt\FkPyApps\SomeScript\` |
+| `opt\FkNodeApps\<AppName>\` | Node.js | `opt\FkNodeApps\SomeApi\` |
+
+UNC pattern: `\\<server>\opt\Fk*Apps\<AppName>\<subfolders and files>`
+
+## Data and Output Folders
+
+Work files, exports, generated output, and app-specific logs live under:
+
+```
+opt\data\<AppName>\
+```
+
+Each app gets its own subfolder. Some apps create additional subfolders for run-specific output (e.g. `opt\data\Db2-ShadowDatabase\FKMVFTSH\20260304-060205\`).
+
+## Shared Modules
+
+PowerShell modules shared across all apps are deployed to:
+
+```
+opt\FkPshApps\CommonModules\
+```
+
+Deployed via `_Modules\_deploy.ps1` from the local dev machine.
+
+## Central Config
+
+Shared configuration files live on a central app server:
+
+```
+\\t-no1fkxtst-app\FkCommon\Configfiles\
+```
+
+Key file: `DatabasesV2.json` — the single source of truth for all DB2 servers, databases, instances, and applications.
+
+## Deployment Pattern
+
+Every app folder in the source repo may contain:
+
+| File | Purpose |
+|------|---------|
+| `_deploy.ps1` | Deploys the app to target servers via `Deploy-Handler` |
+| `_install.ps1` | One-time setup on the server (scheduled tasks, ACLs, etc.) |
+
+Deploy copies files from the local dev machine to `\\<server>\opt\Fk*Apps\<AppName>\` via UNC.

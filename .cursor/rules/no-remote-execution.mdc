@@ -1,0 +1,53 @@
+---
+description: PowerShell remoting is disabled by admin — use file-based orchestration instead
+alwaysApply: true
+---
+
+# No PowerShell Remoting — Use File-Based Orchestration
+
+**PowerShell remoting (WinRM) is disabled by the system administrators** on all servers. The AI agent cannot use any form of remote execution that relies on PS remoting, SSH, or similar protocols.
+
+## Prohibited (admin-disabled)
+
+These will **always fail** because WinRM/PSRemoting is disabled at the infrastructure level:
+
+- `Invoke-Command -ComputerName ...`
+- `Enter-PSSession ...`
+- `New-PSSession ...`
+- `New-CimSession ...` (WSMAN)
+- SSH to Windows servers
+- Any WinRM-based tool or cmdlet
+
+## Permitted: File-Based Orchestration (--autocur)
+
+While direct remoting is blocked, **file-based remote orchestration is fully supported and encouraged**. The `--autocur` command and `Cursor-ServerOrchestrator` use UNC file shares to trigger, monitor, and control remote jobs — no PS remoting required.
+
+This works because:
+- All servers have an `opt` Windows share accessible via UNC (`\\<server>\opt\`)
+- Scheduled tasks on each server poll for command files
+- The agent writes command/kill files via UNC and reads log/result files via UNC
+- All execution happens **on the server** via the scheduled task, not via remoting
+
+### What the agent CAN do
+
+1. **Write command files** via UNC to trigger remote jobs
+2. **Write kill files** via UNC to abort remote jobs
+3. **Read log files** via UNC (copy locally first per remote-log-reading rule)
+4. **Read result files** via UNC to check job outcomes
+5. **Deploy scripts** via UNC using `_deploy.ps1` (file copy)
+6. **Run local commands** on the developer machine (git, deploy scripts, etc.)
+
+### What the agent CANNOT do
+
+1. Run commands directly on remote servers
+2. Use any PS remoting cmdlets
+3. SSH or RDP to servers
+4. Validate results by running queries on remote servers
+
+## Example
+
+When a script needs to run on `t-no1fkxtst-db`:
+
+- **ILLEGAL:** `Invoke-Command -ComputerName t-no1fkxtst-db -ScriptBlock { ... }`
+- **LEGAL:** `"RUN_ALL" | Out-File "\\t-no1fkxtst-db\opt\data\Db2-ShadowDatabase\next_command.txt" -Encoding utf8 -Force`
+- **LEGAL:** `Invoke-ServerCommand -Command '%OptPath%\FkPshApps\SomeApp\Run-Main.ps1' -ServerName 't-no1fkxtst-db'`

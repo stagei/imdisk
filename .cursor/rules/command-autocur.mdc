@@ -1,0 +1,164 @@
+---
+description: "Command --autocur: autonomous run/monitor/fix/deploy/kill loop for remote server jobs"
+alwaysApply: true
+---
+
+# Command --autocur
+
+When the user types **`--autocur`** (or `--autocur <server>`), activate the **autonomous run/monitor/fix/deploy/kill loop** for a project running on a remote server.
+
+This command makes the AI agent work autonomously — monitoring remote jobs, detecting errors in logs, fixing local code, deploying fixes, killing stuck jobs, and restarting until the job completes successfully or the deadline is reached.
+
+## Server Environment
+
+All managed servers have a standardized `opt` Windows share: `\\<server>\opt\`
+
+### App folders
+
+| Folder | Technology |
+|--------|-----------|
+| `opt\FkPshApps\<AppName>\` | PowerShell |
+| `opt\FkWinApps\<AppName>\` | Windows / .NET |
+| `opt\FkPyApps\<AppName>\` | Python |
+| `opt\FkNodeApps\<AppName>\` | Node.js |
+
+UNC pattern: `\\<server>\opt\Fk*Apps\<AppName>\<subfolders and files>`
+
+### Data and logs
+
+- App data/output: `opt\data\<AppName>\`
+- Central PowerShell log: `opt\data\AllPwshLog\FkLog_YYYYMMDD.log`
+- App-specific log (when `Set-OverrideAppDataFolder` is used): `opt\data\<AppName>\FkLog_YYYYMMDD.log`
+- When the override is active, the central AllPwshLog may NOT receive entries for that app
+- Shared modules: `opt\FkPshApps\CommonModules\`
+
+### Date rollover
+
+Log file names include `YYYYMMDD`. When a job runs past midnight:
+- Entries before 00:00 are in `FkLog_YYYYMMDD.log`
+- Entries after 00:00 are in `FkLog_YYYYMMDD+1.log` (next day)
+- **When monitoring, if the time is past 23:59, check the next day's log file**
+
+### Remote log reading
+
+**Always copy log files locally before reading.** Never use `Select-String` or `Get-Content` directly on UNC paths.
+
+```powershell
+$localCopy = Join-Path $env:TEMP "RemoteLog_$(Split-Path $remotePath -Leaf)"
+Copy-Item -Path $remotePath -Destination $localCopy -Force
+```
+
+## Remoting Solution: Cursor-ServerOrchestrator
+
+All remote execution goes through `DevTools/AdminTools/Cursor-ServerOrchestrator/`.
+
+### Setup (once per session)
+
+```powershell
+. "C:\opt\src\FKMenyPSH\DevTools\AdminTools\Cursor-ServerOrchestrator\_helpers\_CursorAgent.ps1"
+```
+
+### Key functions
+
+| Function | Purpose |
+|----------|---------|
+| `Invoke-ServerCommand` | Run a deployed script on the server, wait for result |
+| `Invoke-ServerScript` | Run inline PowerShell on the server |
+| `Get-ServerLog` | Read log files from the server |
+| `Get-ServerStdout` | Peek at live stdout of a running command |
+| `Test-OrchestratorReady` | Check if orchestrator is idle or busy |
+| `Write-KillFile` | Abort a running command |
+| `Read-ResultFile` | Read last result without waiting |
+
+### Server data paths
+
+| Item | UNC Path |
+|------|----------|
+| Command file | `\\<server>\opt\data\Cursor-ServerOrchestrator\next_command.json` |
+| Result file | `\\<server>\opt\data\Cursor-ServerOrchestrator\last_result.json` |
+| Kill file | `\\<server>\opt\data\Cursor-ServerOrchestrator\kill_command.txt` |
+| Live stdout | `\\<server>\opt\data\Cursor-ServerOrchestrator\stdout_capture.txt` |
+
+### Command path syntax
+
+Use `%OptPath%` (Windows env var syntax), NOT `$env:OptPath`:
+
+```powershell
+Invoke-ServerCommand -Command '%OptPath%\FkPshApps\SomeApp\Run-Main.ps1' -ServerName 't-no1fkmvft-db'
+```
+
+## The Autonomous Loop
+
+**This is the core behavior ALL models must follow when `--autocur` is active.**
+
+```
+ ┌──────────────────────────────────────────────────────────────┐
+ │  1. Read project rules and config                           │
+ │  2. Deploy local code to server (_deploy.ps1)               │
+ │  3. Trigger job via orchestrator                            │
+ │  4. Monitor logs (poll every 2-5 min)                       │
+ │     ├─ No errors, not done → continue polling               │
+ │     │   └─ Past midnight? → switch to next day's log file   │
+ │     ├─ Errors found →                                       │
+ │     │   ├─ Auto-fixable → analyze, fix code, deploy, kill,  │
+ │     │   │                  retrigger → go to step 4          │
+ │     │   └─ Blocking → send SMS, continue trying             │
+ │     └─ Job completed →                                      │
+ │         5. Run post-completion validation                    │
+ │         ├─ Passed → send SMS: success                       │
+ │         └─ Failed → analyze, fix, deploy, retrigger         │
+ │  6. Repeat until success or deadline                        │
+ └──────────────────────────────────────────────────────────────┘
+```
+
+### Step details
+
+1. **Read rules**: Read all project-specific local rules (`.cursor/rules/`) and config files to understand the job, its steps, log locations, and known error patterns
+2. **Deploy**: Run the project's `_deploy.ps1` to push local code to the server. For module changes, deploy modules first (`_Modules/_deploy.ps1`)
+3. **Trigger**: Submit the job via Cursor-ServerOrchestrator (`Invoke-ServerCommand`) or project-specific trigger mechanism
+4. **Monitor**: Poll the log file every 2-5 minutes:
+   - Copy log locally first (remote-log-reading rule)
+   - Search for `ERROR`, `JOB_FAILED`, `JOB_COMPLETED`, exit codes
+   - Track unique progress markers (e.g. tables processed, steps completed)
+   - If time crosses midnight, switch to next day's log file
+5. **On error**: Analyze root cause from the log, fix the local source code, deploy to server, kill the running job, retrigger
+6. **On completion**: Run any post-completion validation defined by the project
+7. **On success**: Send SMS to current user
+
+### Log patterns to search for
+
+| Pattern | Action |
+|---------|--------|
+| `JOB_COMPLETED` | Step finished — check if more steps remain |
+| `JOB_FAILED` | Step failed — analyze error, fix, deploy, kill, restart |
+| `\|ERROR\|` | Error entry — classify severity and decide action |
+| `finished with exit code: 0` | Success confirmation |
+| `finished with exit code: 1` | Failure confirmation |
+| `KILL requested` | Kill was triggered (by agent or external) |
+
+## Mandatory Behaviors
+
+These apply to **all models** (Opus, Sonnet, GPT, Composer, Codex, etc.):
+
+1. **NEVER stop and ask the user to check the log** — the agent checks the log itself
+2. **NEVER tell the user to run something manually** — the agent runs it via orchestrator
+3. **NEVER use arbitrary retry limits** — continue until success or deadline
+4. **NEVER lose track of progress** — maintain a todo list of steps and their status
+5. **NEVER read logs directly from UNC** — always copy locally first
+6. **Always deploy before triggering** — the server runs deployed code, not local code
+7. **Always check for date rollover** — if past midnight, check next day's log
+8. **Always send SMS on completion or critical failure** — the user trusts the agent to notify
+9. **Be proactive** — detect errors, diagnose root cause, fix code, deploy, kill, restart
+
+## Project-Specific Overrides
+
+Individual projects may provide a local `.cursor/rules/autocur-*.mdc` file that overrides the general `--autocur` behavior with:
+
+- Custom log paths and file naming
+- Custom trigger/kill mechanism (some projects use their own orchestrator instead of Cursor-ServerOrchestrator)
+- Step sequences and dependencies
+- Post-completion validation commands
+- Known error patterns and auto-fix strategies
+- Deploy sequences (which deploy scripts to run and in what order)
+
+When a project override exists, it takes precedence over this general rule for that project's files.
