@@ -1,0 +1,29 @@
+---
+description: Display RAG registry info prettily in chat when user enters --rag
+alwaysApply: true
+---
+
+# RAG Status Command (--rag)
+
+When the user types **`--rag`** in chat, fetch the RAG registry and display it in a clear, readable format in chat. Include which **server** each RAG is running on and the **last generation date** (when the index was built).
+
+## How to fetch
+
+1. **Try API first**: `GET http://<host>:<port>/rags` — any RAG server returns the full registry with `builtAt` per RAG. Use `t-no1fkxtst-app` and port `8484`, `8485`, or `8486` (try until one responds).
+2. **Fallback**: Read `rag-registry.json` from the workspace root. For last built date, read `library/<rag-name>/.index_manifest.json` and use its `builtAt` field (ISO timestamp).
+
+## How to display
+
+Format the output as a markdown table with columns: **RAG** | **Server** | **Port** | **Last built** | **Description**.
+
+Format `builtAt` for readability: strip timezone suffix, use date + time (e.g. `2026-03-06 09:48`). If `builtAt` is empty, show `—` or `n/a`.
+
+Example:
+
+| RAG | Server | Port | Last built | Description |
+|-----|--------|------|------------|-------------|
+| db2-docs | t-no1fkxtst-app | 8484 | 2026-03-06 09:48 | DB2 12.1 LUW manuals |
+| visual-cobol-docs | t-no1fkxtst-app | 8485 | 2026-03-01 14:22 | Visual COBOL 11 messages |
+| fkmeny-code | t-no1fkxtst-app | 8486 | 2026-03-06 09:48 | FkMeny source code (COBOL, C#, PowerShell, Python, Node) and DB2 schemas |
+
+Add a short header like: **Available RAG indexes** and optionally a footer: *Configure Cursor with `Setup-CursorRag.ps1` to use these.* If the API or registry is unavailable, say so clearly and suggest checking connectivity or `rag-registry.json`.
