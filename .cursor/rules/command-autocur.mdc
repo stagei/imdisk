@@ -1,11 +1,11 @@
 ---
-description: "Command --autocur: autonomous run/monitor/fix/deploy/kill loop for remote server jobs"
+description: "Command /autocur: autonomous run/monitor/fix/deploy/kill loop for remote server jobs"
 alwaysApply: true
 ---
 
-# Command --autocur
+# Command /autocur
 
-When the user types **`--autocur`** (or `--autocur <server>`), activate the **autonomous run/monitor/fix/deploy/kill loop** for a project running on a remote server.
+When the user types **`/autocur`** (or `/autocur <server>`), activate the **autonomous run/monitor/fix/deploy/kill loop** for a project running on a remote server.
 
 This command makes the AI agent work autonomously — monitoring remote jobs, detecting errors in logs, fixing local code, deploying fixes, killing stuck jobs, and restarting until the job completes successfully or the deadline is reached.
 
@@ -89,7 +89,7 @@ Invoke-ServerCommand -Command '%OptPath%\FkPshApps\SomeApp\Run-Main.ps1' -Server
 
 ## The Autonomous Loop
 
-**This is the core behavior ALL models must follow when `--autocur` is active.**
+**This is the core behavior ALL models must follow when `/autocur` is active.**
 
 ```
  ┌──────────────────────────────────────────────────────────────┐
@@ -152,7 +152,7 @@ These apply to **all models** (Opus, Sonnet, GPT, Composer, Codex, etc.):
 
 ## Project-Specific Overrides
 
-Individual projects may provide a local `.cursor/rules/autocur-*.mdc` file that overrides the general `--autocur` behavior with:
+Individual projects may provide a local `.cursor/rules/autocur-*.mdc` file that overrides the general `/autocur` behavior with:
 
 - Custom log paths and file naming
 - Custom trigger/kill mechanism (some projects use their own orchestrator instead of Cursor-ServerOrchestrator)

@@ -1,11 +1,11 @@
 ---
-description: Display RAG registry info prettily in chat when user enters --rag
+description: Display RAG registry info prettily in chat when user enters /rag
 alwaysApply: true
 ---
 
-# RAG Status Command (--rag)
+# RAG Status Command (/rag)
 
-When the user types **`--rag`** in chat, fetch the RAG registry and display it in a clear, readable format in chat. Include which **server** each RAG is running on and the **last generation date** (when the index was built).
+When the user types **`/rag`** in chat, fetch the RAG registry and display it in a clear, readable format in chat. Include which **server** each RAG is running on and the **last generation date** (when the index was built).
 
 ## How to fetch
 

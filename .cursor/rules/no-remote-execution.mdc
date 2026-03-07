@@ -18,9 +18,9 @@ These will **always fail** because WinRM/PSRemoting is disabled at the infrastru
 - SSH to Windows servers
 - Any WinRM-based tool or cmdlet
 
-## Permitted: File-Based Orchestration (--autocur)
+## Permitted: File-Based Orchestration (/autocur)
 
-While direct remoting is blocked, **file-based remote orchestration is fully supported and encouraged**. The `--autocur` command and `Cursor-ServerOrchestrator` use UNC file shares to trigger, monitor, and control remote jobs — no PS remoting required.
+While direct remoting is blocked, **file-based remote orchestration is fully supported and encouraged**. The `/autocur` command and `Cursor-ServerOrchestrator` use UNC file shares to trigger, monitor, and control remote jobs — no PS remoting required.
 
 This works because:
 - All servers have an `opt` Windows share accessible via UNC (`\\<server>\opt\`)
