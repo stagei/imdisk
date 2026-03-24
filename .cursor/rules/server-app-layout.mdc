@@ -17,7 +17,7 @@ Applications are organized by technology under `opt`:
 |--------|-----------|---------|
 | `opt\FkPshApps\<AppName>\` | PowerShell | `opt\FkPshApps\Db2-ShadowDatabase\` |
 | `opt\FkWinApps\<AppName>\` | Windows / .NET | `opt\FkWinApps\SomeService\` |
-| `opt\FkPyApps\<AppName>\` | Python | `opt\FkPyApps\SomeScript\` |
+| `opt\FkPythonApps\<AppName>\` | Python | `opt\FkPythonApps\SomeScript\` |
 | `opt\FkNodeApps\<AppName>\` | Node.js | `opt\FkNodeApps\SomeApi\` |
 
 UNC pattern: `\\<server>\opt\Fk*Apps\<AppName>\<subfolders and files>`

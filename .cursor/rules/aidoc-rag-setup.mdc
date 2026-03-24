@@ -1,0 +1,103 @@
+---
+description: How to set up and use AiDoc RAG services in Cursor and Ollama
+alwaysApply: false
+---
+
+# AiDoc RAG Services — Setup and Usage
+
+AiDoc provides centralized RAG (Retrieval Augmented Generation) indexes hosted on `t-no1fkxtst-app` via Python HTTP servers. These give Cursor and Ollama access to DB2, Visual COBOL, and FkMeny source documentation without needing local copies.
+
+## Available RAGs
+
+| RAG | Port | Description |
+|-----|------|-------------|
+| `db2-docs` | 8484 | DB2 12.1 LUW manuals |
+| `visual-cobol-docs` | 8485 | Visual COBOL 11 compiler messages |
+| `fkmeny-code` | 8486 | FkMeny source code (COBOL, C#, PowerShell, Python, Node) and DB2 schemas |
+
+Registry endpoint (no auth): `http://t-no1fkxtst-app:8484/rags`
+
+## Cursor Setup (one-time)
+
+Run the setup script from `FKMenyPSH\DevTools\CodingTools`:
+
+```powershell
+pwsh.exe -File "C:\opt\src\FKMenyPSH\DevTools\CodingTools\Setup-CursorRagNew\Setup-CursorRagNew.ps1"
+```
+
+Or from deployed location:
+
+```powershell
+pwsh.exe -File "$env:OptPath\FkPshApps\Setup-CursorRagNew\Setup-CursorRagNew.ps1"
+```
+
+This auto-discovers RAGs from the AiDocNew API, creates a lightweight Python venv in `~/.cursor/rag-proxy/`, and updates `~/.cursor/mcp.json`. Restart Cursor after running.
+
+**Important:** Always use the `*New` variants (`Setup-CursorRagNew`, `Setup-OllamaRagNew`), not the old `Setup-CursorRag` / `Setup-OllamaRag` scripts. The old scripts point to the legacy AiDoc architecture.
+
+### Verify
+
+```powershell
+pwsh.exe -File "C:\opt\src\FKMenyPSH\DevTools\CodingTools\Setup-CursorRagNew\Test-CursorRagNew.ps1"
+```
+
+### Revert
+
+```powershell
+pwsh.exe -File "C:\opt\src\FKMenyPSH\DevTools\CodingTools\Setup-CursorRagNew\Setup-CursorRagNew.ps1" -Revert
+```
+
+## Ollama Setup (one-time)
+
+```powershell
+pwsh.exe -File "C:\opt\src\FKMenyPSH\DevTools\CodingTools\Setup-OllamaRagNew\Setup-OllamaRagNew.ps1"
+```
+
+Restart PowerShell, then use:
+
+```powershell
+Ask-Rag "What does SQL30082N reason code 36 mean?"
+Ask-Rag "COBCH0779 error" -Rag visual-cobol-docs
+Ask-Rag "Deploy-Files" -Rag fkmeny-code
+```
+
+### Verify
+
+```powershell
+pwsh.exe -File "C:\opt\src\FKMenyPSH\DevTools\CodingTools\Setup-OllamaRagNew\Test-OllamaRagNew.ps1"
+```
+
+## Using RAGs in Cursor Chat
+
+Each RAG appears as an MCP server with a `query_docs` tool. The agent calls them automatically based on the question topic:
+
+- **DB2 questions** (SQL errors, security, configuration) → `db2-docs`
+- **Visual COBOL questions** (compiler messages, language reference) → `visual-cobol-docs`
+- **FkMeny code questions** (where is a function, schema layout) → `fkmeny-code`
+
+Do not use `db2-docs` for COBOL questions or vice versa.
+
+## How RAG Access Works
+
+RAG services run as **Python HTTP servers directly** on `t-no1fkxtst-app` (ports 8484-8486). They are **unauthenticated** — no FkAuth, no JWT, no API keys. The Cursor MCP proxy and Ask-Rag function connect directly to these Python services over HTTP, bypassing the C# API entirely.
+
+```
+Developer Machine                          t-no1fkxtst-app
+┌──────────────────┐                      ┌──────────────────┐
+│ Cursor IDE       │                      │ Python HTTP RAGs  │
+│  └─ MCP proxy ───┼── HTTP :8484-8486 ──►│  db2-docs         │
+│     (stdio)      │                      │  visual-cobol-docs│
+│                  │                      │  fkmeny-code      │
+│ PowerShell       │                      │                   │
+│  └─ Ask-Rag ─────┼── HTTP :8484-8486 ──►│  (ChromaDB +      │
+│     + Ollama     │                      │   ONNX embedding) │
+└──────────────────┘                      └──────────────────┘
+```
+
+## Prerequisites
+
+- Windows 11 / Windows Server 2025
+- PowerShell 7+ (`pwsh.exe`)
+- Python 3.11+ (Cursor setup only)
+- Ollama installed from [ollama.com](https://ollama.com) (Ollama setup only)
+- Network access to `t-no1fkxtst-app`

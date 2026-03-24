@@ -19,7 +19,7 @@ All managed servers have a standardized `opt` Windows share: `\\<server>\opt\`
 |--------|-----------|
 | `opt\FkPshApps\<AppName>\` | PowerShell |
 | `opt\FkWinApps\<AppName>\` | Windows / .NET |
-| `opt\FkPyApps\<AppName>\` | Python |
+| `opt\FkPythonApps\<AppName>\` | Python |
 | `opt\FkNodeApps\<AppName>\` | Node.js |
 
 UNC pattern: `\\<server>\opt\Fk*Apps\<AppName>\<subfolders and files>`

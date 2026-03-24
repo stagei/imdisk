@@ -1,9 +1,3 @@
----
-description: Autonomous task completion - continue until deadline or success
-globs:
-alwaysApply: true
----
-
 # Autonomous Task Completion
 
 When the user gives you a task with a time limit or asks you to complete something without their interaction:
@@ -49,3 +43,4 @@ The user is trusting you to complete the work while they are away. Honor that tr
 - Working diligently until the job is done
 - Not cutting corners with arbitrary limits
 - Delivering complete results by the deadline
+
