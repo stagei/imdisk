@@ -52,6 +52,8 @@ Shared configuration files live on a central app server:
 
 Key file: `DatabasesV2.json` — the single source of truth for all DB2 servers, databases, instances, and applications.
 
+Its shape is documented by the JSON Schema beside it, `\\t-no1fkxtst-app\FkCommon\Configfiles\DatabasesV2.schema.json`: every property, which ones apply per `Provider` (DB2 / PostgreSQL / SQLite / SqlServer), and the four `AccessPointType` values (`PrimaryDb`, `Alias`, `PortForwardAlias`, `FederatedDb`) — where the two alias types are additional names for the `PrimaryDb` and must never be counted as separate databases. Read the schema before interpreting or editing an entry.
+
 ## Deployment Pattern
 
 Every app folder in the source repo may contain:
